@@ -1,0 +1,127 @@
+<style type="text/css">
+  canvas#canvas, svg#svg{
+    position: absolute;
+    cursor: crosshair;
+  }
+</style>
+<pre>
+<b>Country</b>: <span id="country"></span>
+<b>City</b>: <span id="city"></span>
+<b>Mean price for 1 night</b>: <span id="mean_price"></span>
+<b>Median price for 1 night</b>: <span id="median_price"></span>
+<b>Cost of flight in one direction</b>: <span id="flight_price"></span>
+<b>Cost of two-week vacation</b>: <span id="vacation_price"></span>
+</pre>
+<canvas id="canvas" width="1000" height="600"></canvas>
+<svg id="svg" width="1000" height="600"></svg>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script src="https://d3js.org/d3-geo-projection.v1.min.js"></script>
+<script src="https://unpkg.com/topojson-client@3"></script>
+<script>
+
+var context = d3.select("canvas").node().getContext("2d"),
+    canvas = d3.select("canvas"),
+    width = +canvas.attr("width"),
+    height = +canvas.attr("height");
+var svg = d3.select("svg");
+var pointer =  svg.append("g").append("circle").attr("cx", -10).attr("cy", -10).attr("stroke-width", 2)
+.attr("stroke", "#E91E63").attr("fill", "rgba(0,0,0,0)").attr("r", 5);
+
+var projection = d3.geoPatterson()
+    .scale(150)
+    .translate([width / 2, height / 2])
+    .precision(0.1);
+
+var path = d3.geoPath(projection, context);
+
+d3.json("https://d3js.org/world-50m.v1.json", function(error, world) {
+  if (error) throw error;
+
+
+
+  d3.csv("/data/cost_of_vacation/booking_skyscanner_city_data.csv", function(error, data){
+
+    projected_data = []
+
+    data.forEach(function(d){
+      xy = projection([
+      d.longitude,
+      d.latitude
+      ]);
+      projected_data.push(xy);
+    });
+
+    var voronoi = d3.voronoi()
+    .extent([[-1, -1], [width + 1, height + 1]]);
+
+    var diagram = voronoi(projected_data),
+        polygons = diagram.polygons();
+
+    svg.on("mousemove", function(){
+      var m = d3.mouse(this);
+      m = diagram.find(m[0], m[1]);
+      d3.select("#country").text(data[m.index]["country"]);
+      d3.select("#city").text(data[m.index]["city"]);
+      d3.select("#mean_price").text("RUB "+(+data[m.index]["mean_price"]).toLocaleString());
+      d3.select("#median_price").text("RUB "+(+data[m.index]["median_price"]).toLocaleString());
+      d3.select("#flight_price").text("RUB "+(+data[m.index]["price_to"]).toLocaleString());
+      d3.select("#vacation_price").text("RUB "+(+data[m.index]["two_week_vacation_price"]).toLocaleString());
+      mousemove(m.index);
+    });
+
+    function mousemove(index) {
+
+      pointer.attr("cx", projected_data[index][0]).attr("cy", projected_data[index][1]);
+      
+    }
+
+    var colorScale = d3.scaleSequential(d3.interpolateViridis)
+    .domain([0, d3.max(data, function(d){return +d["two_week_vacation_price"];})]);
+
+    redraw();
+
+    function redraw() {
+      context.clearRect(0, 0, width, height);
+
+      context.strokeStyle = 'rgba(0,0,0,1)';
+      context.beginPath();
+      path(topojson.mesh(world));
+      context.stroke();
+
+      
+      for (var i = 0, n = projected_data.length; i < n; ++i) {
+        context.beginPath();
+        drawSite(projected_data[i]);
+        context.fillStyle = colorScale(data[i]["two_week_vacation_price"]);
+        context.strokeStyle = context.fillStyle;
+        context.fill();
+        context.stroke();
+      }
+      
+  
+    }
+
+    function drawSite(site) {
+      context.moveTo(site[0] + 5, site[1]);
+      context.arc(site[0], site[1], 5, 0, 2 * Math.PI, false);
+    }
+
+    function drawCell(cell) {
+      if (!cell) return false;
+      context.moveTo(cell[0][0], cell[0][1]);
+      for (var j = 1, m = cell.length; j < m; ++j) {
+        context.lineTo(cell[j][0], cell[j][1]);
+      }
+      context.closePath();
+      return true;
+    }
+
+    
+
+  });
+
+
+
+});
+
+</script>

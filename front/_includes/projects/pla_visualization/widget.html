@@ -1,0 +1,167 @@
+<div id="pla-container">
+    <div id ='launch-pla'><p>Reset</p></div>
+    <svg id = 'pla-visualization' ></svg>
+</div>
+<script src="//d3js.org/d3.v4.min.js"></script>
+<script>
+
+d3.select('#pla-container')
+    .style('display', 'flex')
+    .style('flex-direction', 'column')
+    .style('justify-content', 'center')
+    .style('align-items', 'center');
+
+var button = d3.select('#launch-pla').on('click', launch_pla)
+    .style('border', 'solid')
+    .style('width', '100px')
+    .style('border-radius', '5px')
+    .style('cursor', 'pointer')
+    .style('display', 'flex')
+    .style('justify-content', 'center')
+    .style('align-items', 'center')
+    .style('padding', '5px')
+    .style('color', '#3F51B5')
+    .on('mouseover', function(){
+        d3.select(this).transition().duration(300).style('color', '#E91E63');
+    })
+    .on('mouseleave', function(){
+        d3.select(this).transition().duration(600).style('color', '#3F51B5');
+    });
+
+button.select('p').style('padding', 0).style('margin', 0);
+
+
+launch_pla();
+
+function launch_pla(){
+var svg = d3.select('#pla-visualization')
+    .attr('width', Math.min(600, window.innerWidth, (3/2)*window.innerHeight))
+    .attr('height', Math.min(400, window.innerWidth*(2/3), window.innerHeight));
+
+svg.selectAll('*').remove();
+var margin = {top: 30, right: 50, bottom: 30, left: 30},
+    width = +svg.attr("width") - margin.left - margin.right,
+    height = +svg.attr("height") - margin.top - margin.bottom;
+
+var g = svg.append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+var a_coefficient = d3.randomNormal()();
+var b_coefficient = d3.randomNormal()();
+
+var simulated_data = []
+for (var i=0; i<20; i++){
+	var x_random = d3.randomNormal()();
+	if (i<10){
+		simulated_data.push([x_random, a_coefficient + b_coefficient*x_random + 10*Math.random()]);
+	}
+	if (i>=10){
+		simulated_data.push([x_random, a_coefficient + b_coefficient*x_random - 10*Math.random()]);
+	}
+}
+
+var simulated_data_xmin = d3.min(simulated_data, function(d) { return d[0]; });
+var simulated_data_xmax = d3.max(simulated_data, function(d) { return d[0]; });
+var simulated_data_ymin = d3.min(simulated_data, function(d) { return d[1]; });
+var simulated_data_ymax = d3.max(simulated_data, function(d) { return d[1]; });
+
+
+var x = d3.scaleLinear()
+      .domain([simulated_data_xmin - 0.05*(simulated_data_xmax -  simulated_data_xmin), simulated_data_xmax + 0.05*(simulated_data_xmax -  simulated_data_xmin)])
+      .range([0, width]);
+
+var y = d3.scaleLinear()
+      .domain([simulated_data_ymin - 0.05*(simulated_data_ymax - simulated_data_ymin), simulated_data_ymax + 0.05*(simulated_data_ymax - simulated_data_ymin)])
+      .range([height, 0]);
+
+var circles = g.selectAll('.circle')
+    .data(simulated_data)
+    .enter().append('circle')
+    .attr('cx', function(d){return x(d[0]);})
+    .attr('cy', function(d) {return y(d[1]);})
+    .attr('r', 5)
+    .style('fill', function(d,i){ return i<10?'blue':'red';});
+
+var xAxisGroup = g.append("g")
+    .attr("class", "axis axis--x")
+    .attr("transform", "translate(0," + height + ")")
+    .call(d3.axisBottom(x));
+
+var yAxisGroup = g.append("g")
+    .attr("class", "axis axis--y")
+    .attr("transform", "translate(0,0)")
+    .call(d3.axisLeft(y));
+
+
+
+    
+
+    function return_misclassified(data, w){
+    	for(var i = 0; i < data.length; i++){
+    		if (i<10 && w[0] + w[1]*data[i][0] + w[2]*data[i][1] < 0){
+    			return i;
+    		}
+    		if (i>=10 && w[0] + w[1]*data[i][0] + w[2]*data[i][1] > 0){
+    			return i;
+    		}
+    	}
+    	return -1;
+    }
+
+    function update(w,datum){
+    	var sign = (-a_coefficient - b_coefficient*datum[0] + datum[1])>0?1:-1;
+    	w[0] += sign;
+    	w[1] += sign*datum[0];
+    	w[2] += sign*datum[1];
+    }
+
+    var w = [0, 0, 0];
+    update(w, simulated_data[0]);
+    var line = g.append("path").datum([[x.domain()[0], -w[0]/w[2] - w[1]/w[2]*x.domain()[0]], 
+            [x.domain()[1], -w[0]/w[2] - w[1]/w[2]*x.domain()[1]]])
+        .attr("d", d3.line()
+        .x(function(d) { return x(d[0]); })
+        .y(function(d) { return y(d[1]); }))
+        .style('stroke', 'black')
+        .style('stroke-width','2');
+
+    var iteration = 1;
+
+
+     (function repeat() {
+
+    	var misclassified_index = return_misclassified(simulated_data, w);
+        if (misclassified_index>=0){
+
+        	g.append("path").datum([[x.domain()[0], -w[0]/w[2] - w[1]/w[2]*x.domain()[0]], 
+    	        [x.domain()[1], -w[0]/w[2] - w[1]/w[2]*x.domain()[1]]])
+        	        .attr("d", d3.line()
+        		    .x(function(d) { return x(d[0]); })
+        		    .y(function(d) { return y(d[1]); }))
+        	        .style('stroke', 'black')
+        	        .style('opacity', '0.3')
+        	        .style('stroke-width', '0.5');
+
+        	update(w, simulated_data[misclassified_index]);
+        	var line_range = [-w[0]/w[2] - w[1]/w[2]*x.domain()[0], -w[0]/w[2] - w[1]/w[2]*x.domain()[1]];
+            iteration++;
+
+        	line.datum([[x.domain()[0], line_range[0]], 
+    	    [x.domain()[1], line_range[1]]])
+    	            .transition()
+    	            .duration(2000)
+    	            .attr("d", d3.line()
+                    .x(function(d) { return x(d[0]); })
+                    .y(function(d) { return y(d[1]); }))
+    	            .on('end', repeat);
+
+
+        } else if (iteration==1) {
+            launch_pla();
+        }
+    })()
+
+}
+
+
+</script>

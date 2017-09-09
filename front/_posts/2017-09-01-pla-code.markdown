@@ -1,0 +1,9 @@
+---
+layout: post
+title: "Visualizing Perceptron Learning Algorithm. Technical Details."
+date: 2017-09-01
+categories: d3.js
+exclude: true
+---
+
+Coming soon. [Go back]({% post_url 2017-08-31-visualizing-pla %})

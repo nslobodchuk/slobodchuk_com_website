@@ -1,0 +1,7 @@
+bundle exec jekyll serve
+JEKYLL_ENV=production jekyll build
+
+rsync -anv ./_site/ nslobodchuk@slobodchuk.com:/var/www/html/
+rsync -a ./_site/ nslobodchuk@slobodchuk.com:/var/www/html/
+
+open $(bundle show minima)
