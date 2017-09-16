@@ -1,0 +1,188 @@
+<style>
+
+.tooltip {
+  position: absolute;
+  text-align: left;
+  padding: 4px;
+  font: 14px sans-serif;
+  background: #FAFAFA;
+  pointer-events: none;
+}
+
+canvas{
+  cursor: pointer;
+}
+
+</style>
+
+<canvas id="bubble-chart" width="600" height="600"></canvas>
+<script src="//d3js.org/d3.v4.min.js"></script>
+<script>
+d3.csv("/data/nasdaq_market_capitalization/nasdaq_output.csv", function(error, data){
+  if(error) throw error;
+
+  var descriptives = {
+    count: 0,
+    sum: 0,
+    average: 0
+  };
+
+  data.forEach(function(d){
+    d.market_cap = + d.market_cap;
+    descriptives.sum += d.market_cap;
+  });
+
+  descriptives.count = data.length;
+  descriptives.average = descriptives.sum/descriptives.count;
+
+  descriptives.top_10 = data.sort(function(a, b){return b.market_cap-a.market_cap;}).slice(0,10);
+
+  console.log(descriptives);
+
+  data.sort(function(a, b){
+    if(a.symbol < b.symbol){
+      return -1;
+    } else{
+      return 1;
+    }
+  });
+
+  var color = d3.scaleOrdinal(d3.schemeCategory20c);
+
+  var r = d3.scalePow().exponent(0.5).domain(d3.extent(data, function(d){return d.market_cap;}))
+  .range([2, 40]);
+
+  data.forEach(function(d){
+    d.r = r(d.market_cap);
+    d.color = color(d.sector);
+  });
+
+  var canvas = document.querySelector("canvas"),
+    context = canvas.getContext("2d"),
+    width = canvas.width,
+    height = canvas.height,
+    tau = 2 * Math.PI;
+
+  var sectors = {};
+
+  data.forEach(function(d){
+    if(!(d.sector in sectors)){
+      sectors[d.sector] = null
+    }
+  });
+
+  console.log(sectors);
+  console.log(Object.keys(sectors).length)
+
+var simulation = d3.forceSimulation(data)
+    .velocityDecay(0.2)
+    .force("x", d3.forceX().strength(0.005))
+    .force("y", d3.forceY().strength(0.005))
+    .force("collide", d3.forceCollide().radius(function(d) { return d.r + 0.5; }).iterations(2).strength(0.7))
+
+
+d3.select(canvas)
+.call(d3.drag().container(canvas).subject(dragsubject)
+	.on("start", dragstarted)
+	.on("drag", dragged)
+	.on("end", dragended))
+  .on("mousemove", mousemoved)
+  .on("click", clicked);
+
+
+d3.select(canvas).on("mousemove", mousemoved).on("mouseleave", mouseleft);
+
+var canvasMouseState = {
+  x: null,
+  y: null
+}
+
+var div = d3.select("body").append("div")
+    .attr("class", "tooltip")
+    .style("display", "none");
+
+window.requestAnimationFrame(draw)
+
+function draw(){
+
+  context.clearRect(0, 0, width, height);
+  context.save();
+  context.translate(width / 2, height / 2);
+  context.strokeStyle = "#333";
+  data.forEach(function(d) {
+   context.beginPath();
+    context.moveTo(d.x + d.r, d.y);
+    context.arc(d.x, d.y, d.r, 0, tau);
+    context.fillStyle = d.color;
+    context.fill();
+    context.stroke();
+  });
+
+  if(canvasMouseState.node){
+    var node = canvasMouseState.node;
+    context.strokeStyle = "#E91E63";
+    canvas.lineWidth = 2;
+    context.beginPath();
+    context.moveTo(node.x + node.r, node.y);
+    context.arc(node.x, node.y, node.r, 0, tau);
+    context.fillStyle = node.color;
+    context.fill();
+    context.stroke();
+  }
+
+  
+  context.restore();
+
+  window.requestAnimationFrame(draw)
+}
+
+function dragsubject(){
+	return simulation.find(d3.event.x - width / 2, d3.event.y - height / 2);
+}
+
+function dragstarted(){
+	if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+	d3.event.subject.fx = d3.event.subject.x;
+	d3.event.subject.fy = d3.event.subject.y;
+}
+
+function dragged(){
+	d3.event.subject.fx = d3.event.x;
+	d3.event.subject.fy = d3.event.y;
+}
+
+function dragended(){
+	if (!d3.event.active) simulation.alphaTarget(0);
+	d3.event.subject.fx = null;
+	d3.event.subject.fy = null;
+}
+
+function mousemoved(){
+  canvasMouseState.x = d3.event.x - canvas.getBoundingClientRect().left - width / 2;
+  canvasMouseState.y = d3.event.y - canvas.getBoundingClientRect().top - height / 2;
+  canvasMouseState.node = simulation.find(canvasMouseState.x, canvasMouseState.y);
+
+  div.style("display", "inline")
+      .text(canvasMouseState.node.name + " [" + canvasMouseState.node.symbol + "]: " + canvasMouseState.node.market_cap_label)
+      .style("left", (d3.event.x + 0.7*canvasMouseState.node.r + window.pageXOffset) + "px")
+      .style("top", (d3.event.y  - 0.7*canvasMouseState.node.r - 30 + window.pageYOffset) + "px")
+      .style("box-shadow", "0px 2px 30px " + canvasMouseState.node.color);
+}
+
+function mouseleft(){
+  div.style("display", "none");
+  canvasMouseState.x = null;
+  canvasMouseState.y = null;
+  canvasMouseState.node = null;
+}
+
+function clicked(){
+  window.open(canvasMouseState.node.summary);
+}
+
+});
+
+
+
+
+</script>
