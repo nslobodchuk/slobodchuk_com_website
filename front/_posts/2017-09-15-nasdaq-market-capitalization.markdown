@@ -33,8 +33,8 @@ The total capitalization of [NASDAQ](http://www.nasdaq.com/screening/company-lis
 
 [Below](#bubble-chart) is a bubble chart made of 2,878 circles. Each circle represents a company. The area of a circle represents the market capitalization of a company, while the color represents the sector. You can see that the largest companies belong to [Technology](http://www.nasdaq.com/screening/companies-by-industry.aspx?industry=Technology), [Consumer Services](http://www.nasdaq.com/screening/companies-by-industry.aspx?industry=Consumer+Services), and [Health Care](http://www.nasdaq.com/screening/companies-by-industry.aspx?industry=Health+Care) sectors.
 
-Mouse over a circle to see the name of the company. Click on the circle to see the company's profile on [NASDAQ](http://www.nasdaq.com/). You can also interact with the circles by dragging them.
+Mouse over a circle to see the name of the company. Click on the circle to see the company's profile on [NASDAQ](http://www.nasdaq.com/).
 
-What do YOU think? Leave a comment below.
+Do you like this data visualization? Leave a comment below.
 
 {% include projects/nasdaq_market_capitalization/index.html %}

@@ -15,82 +15,41 @@ canvas{
 
 </style>
 
-<canvas id="bubble-chart" width="600" height="600"></canvas>
+<canvas id="bubble-chart"></canvas>
 <script src="//d3js.org/d3.v4.min.js"></script>
 <script>
-d3.csv("/data/nasdaq_market_capitalization/nasdaq_output.csv", function(error, data){
+d3.json("/data/nasdaq_market_capitalization/nasdaq-market-capitalization.json", function(error, data){
   if(error) throw error;
 
-  var descriptives = {
-    count: 0,
-    sum: 0,
-    average: 0
-  };
+    var canvas = document.querySelector("canvas"),
+    context = canvas.getContext("2d"),
+    width = Math.min(600, window.innerWidth*0.9, window.innerHeight*0.9),
+    height = width,
+    tau = 2 * Math.PI;
+
+  var factor = width/600;
+
+  d3.select(canvas).attr("width", width).attr("height", height);
 
   data.forEach(function(d){
     d.market_cap = + d.market_cap;
-    descriptives.sum += d.market_cap;
-  });
-
-  descriptives.count = data.length;
-  descriptives.average = descriptives.sum/descriptives.count;
-
-  descriptives.top_10 = data.sort(function(a, b){return b.market_cap-a.market_cap;}).slice(0,10);
-
-  console.log(descriptives);
-
-  data.sort(function(a, b){
-    if(a.symbol < b.symbol){
-      return -1;
-    } else{
-      return 1;
-    }
+    d.index = + d.index;
+    d.r = factor*(+ d.r);
+    d.x = factor*(+ d.x);
+    d.y = factor*(+d.y);
+    d.vx = (+d.vx);
+    d.vy = (+d.vy);
   });
 
   var color = d3.scaleOrdinal(d3.schemeCategory20c);
 
-  var r = d3.scalePow().exponent(0.5).domain(d3.extent(data, function(d){return d.market_cap;}))
-  .range([2, 40]);
-
-  data.forEach(function(d){
-    d.r = r(d.market_cap);
-    d.color = color(d.sector);
-  });
-
-  var canvas = document.querySelector("canvas"),
-    context = canvas.getContext("2d"),
-    width = canvas.width,
-    height = canvas.height,
-    tau = 2 * Math.PI;
-
-  var sectors = {};
-
-  data.forEach(function(d){
-    if(!(d.sector in sectors)){
-      sectors[d.sector] = null
-    }
-  });
-
-  console.log(sectors);
-  console.log(Object.keys(sectors).length)
-
-var simulation = d3.forceSimulation(data)
-    .velocityDecay(0.2)
-    .force("x", d3.forceX().strength(0.005))
-    .force("y", d3.forceY().strength(0.005))
-    .force("collide", d3.forceCollide().radius(function(d) { return d.r + 0.5; }).iterations(2).strength(0.7))
+var simulation = d3.forceSimulation(data).stop();
 
 
 d3.select(canvas)
-.call(d3.drag().container(canvas).subject(dragsubject)
-	.on("start", dragstarted)
-	.on("drag", dragged)
-	.on("end", dragended))
   .on("mousemove", mousemoved)
-  .on("click", clicked);
-
-
-d3.select(canvas).on("mousemove", mousemoved).on("mouseleave", mouseleft);
+  .on("click", clicked)
+  .on("mouseleave", mouseleft);
 
 var canvasMouseState = {
   x: null,
@@ -101,7 +60,7 @@ var div = d3.select("body").append("div")
     .attr("class", "tooltip")
     .style("display", "none");
 
-window.requestAnimationFrame(draw)
+//window.requestAnimationFrame(draw)
 
 function draw(){
 
@@ -133,29 +92,10 @@ function draw(){
   
   context.restore();
 
-  window.requestAnimationFrame(draw)
+  //window.requestAnimationFrame(draw)
 }
 
-function dragsubject(){
-	return simulation.find(d3.event.x - width / 2, d3.event.y - height / 2);
-}
-
-function dragstarted(){
-	if (!d3.event.active) simulation.alphaTarget(0.3).restart();
-	d3.event.subject.fx = d3.event.subject.x;
-	d3.event.subject.fy = d3.event.subject.y;
-}
-
-function dragged(){
-	d3.event.subject.fx = d3.event.x;
-	d3.event.subject.fy = d3.event.y;
-}
-
-function dragended(){
-	if (!d3.event.active) simulation.alphaTarget(0);
-	d3.event.subject.fx = null;
-	d3.event.subject.fy = null;
-}
+draw()
 
 function mousemoved(){
   canvasMouseState.x = d3.event.x - canvas.getBoundingClientRect().left - width / 2;
@@ -167,6 +107,7 @@ function mousemoved(){
       .style("left", (d3.event.x + 0.7*canvasMouseState.node.r + window.pageXOffset) + "px")
       .style("top", (d3.event.y  - 0.7*canvasMouseState.node.r - 30 + window.pageYOffset) + "px")
       .style("box-shadow", "0px 2px 30px " + canvasMouseState.node.color);
+  draw();
 }
 
 function mouseleft(){
@@ -174,6 +115,7 @@ function mouseleft(){
   canvasMouseState.x = null;
   canvasMouseState.y = null;
   canvasMouseState.node = null;
+  draw();
 }
 
 function clicked(){
